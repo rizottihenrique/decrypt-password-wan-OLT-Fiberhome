@@ -29,7 +29,7 @@ $$\text{Valor ASCII da Senha Real} = 158 - \text{Valor ASCII do Caractere Mascar
 
 ## 3. Otimizações de Performance (Processamento em Lote)
 
-O script foi desenhado especificamente para ambientes de provedores de internet (ISPs) que lidam com **milhares de ONTs simultaneamente**. Para garantir velocidade máxima e consumo mínimo de hardware, foram aplicadas duas técnicas avançadas:
+O script foi desenhado especificamente para ambientes de provedores de internet (ISPs) que lidam com **milhares de ONTs simultaneamente**. Para garantir velocidade máxima e consumo mínimo de hardware, foram aplicadas duas técnicas:
 
 1. **Processamento em Stream (Linha por Linha):** O script não carrega o arquivo `.txt` inteiro na memória RAM. Ele lê, processa e escreve uma linha por vez. Isso significa que você pode processar um arquivo de configuração de 2GB contendo milhões de ONTs utilizando praticamente 0% de memória RAM.
 2. **Tabela de Tradução Nativa (`str.maketrans`):** Em vez de fazer loops em Python caractere por caractere (o que seria lento), o script pré-calcula a tabela de reversão de todos os caracteres visíveis e utiliza a função `.translate()`. Essa função executa a substituição das strings diretamente em **nível de linguagem C** (mecanismo interno do Python), tornando a conversão instantânea.
