@@ -6,7 +6,7 @@ O script localiza o parâmetro `key:VALOR` dentro dos comandos `set wancfg`, rev
 
 ---
 
-## 2. Como o Script Funciona por Baixo dos Panos
+## 2. Como o Script Funciona
 
 ### A Lógica da Cifra (Espelhamento ASCII)
 Durante os testes empíricos em bancada utilizando senhas conhecidas (como `aaaaaa` e o alfabeto completo), descobriu-se que o firmware da OLT não utiliza uma criptografia complexa (como MD5 ou AES), mas sim uma **Cifra de Substituição por Espelhamento** baseada na tabela ASCII padrão.
