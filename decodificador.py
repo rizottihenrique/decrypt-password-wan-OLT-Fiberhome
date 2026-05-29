@@ -83,7 +83,7 @@ def processar_lote_olt_completo(arquivo_entrada, arquivo_saida):
             for slot, pon, onu_id in lista_equipamentos:
                 comando_tr069 = (
                     f"set remote_manage_cfg slot {slot} pon {pon} onu {onu_id} tr069 enable "
-                    f"acs_url http://cwmp.nicnet.com.br:8088 acl_user Admin acl_pswd Admin@1234 "
+                    f"acs_url http://cwmp.teste.teste:8000 acl_user teste acl_pswd teste@123 "
                     f"inform enable interval 43200 port 30005 user cpe pswd cpe\n"
                 )
                 f_out.write(comando_tr069)
