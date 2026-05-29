@@ -1,1 +1,2 @@
-onu wan-cfg 5 ind 1 mode inter ty r 4000 0 nat en qos dis vlanm tag tvlan dis 0 0 dsp pppoe pro dis teste key:lnmiimh= null auto entries 6 fe1 fe2 fe3 fe4 ssid1 ssid5  
+!module config:onu_wan.
+set wancfg sl 1 1 1 ind 1 mode inter ty r 4000 0 nat en qos dis vlanm tag tvlan dis 65535 65535 dsp pppoe pro dis pppoe_teste key::;lnjmk< null auto entries 6 fe1 fe2 fe3 fe4 ssid1 ssid5  
