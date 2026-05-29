@@ -1,73 +1,49 @@
-# Decodificador e Modificador de Configurações WAN (Modo Lote) - OLT Fiberhome
+# Script de Migração e Apontamento Massivo de TR-069 - OLT Fiberhome
 
-Este script automatizado em Python foi desenvolvido para processar arquivos de configuração em lote extraídos de OLTs Fiberhome.
+Este script automatizado em Python foi desenvolvido especificamente para cenários de migração, auditoria e gerência centralizada de provedores de internet (ISPs). O objetivo principal da ferramenta é **automatizar o apontamento e a ativação do protocolo TR-069 (ACS)** em milhares de ONTs simultaneamente através da CLI da OLT.
 
-1. **Desofuscação de Senhas:** Reverte a codificação estática do campo `key:VALOR` para texto claro (senha real do PPPoE).
-2. **Alteração de Perfil de Gerência:** Substitui o parâmetro `mode inter` por `mode tr069_int`.
-3. **Automação de Commit por Bloco:** Identifica o par de comandos de cada ONU, injeta o comando `apply wancfg` com o respectivo Slot/Pon/Onu_ID e adiciona espaçamento para facilitar a leitura.
+Para que o apontamento do TR-069 funcione perfeitamente sem intervenção manual, o script processa os arquivos de configuração em lote e resolve três grandes gargalos de uma só vez:
+1. **Ativação da WAN TR-069 (Dual Stack):** Altera o perfil da WAN de `mode inter` para `mode tr069_int` e força o provisionamento em IPv4/IPv6 (`both`) via `dhcpv6`.
+2. **Desofuscação de Senhas PPPoE:** Quebra a criptografia estática nativa do firmware (`key:VALOR`), inserindo as senhas reais em texto claro para que a migração não derrube a autenticação dos clientes.
+3. **Divisão de Contexto da CLI (Context-Aware):** Separa os comandos em blocos distintos de execução (WAN e Gerência Remota), respeitando a árvore de diretórios nativa da OLT.
 
 ---
 
-## 1. Funcionamento do Fluxo de Blocos (A Nova Lógica)
+## 1. Funcionamento e Arquitetura do Script
 
-Diferente de scripts de substituição linear simples, este decodificador compreende que cada equipamento (ONU) no arquivo de configuração possui um bloco estruturado de **duas linhas de comando consecutivas**. 
+O script divide o arquivo final (`output.txt`) em duas etapas lógicas fundamentais para que você possa copiar e colar no terminal da OLT sem erros de sintaxe ou contexto:
 
-O script rastreia e organiza o fluxo da seguinte forma:
+### Bloco 1: Ajuste de WAN e Conectividade (Diretório: `gepon/onu/lan`)
+Cada ONU possui um par de comandos sequenciais. O script intercepta essas linhas, aplica as correções de protocolo, traduz a senha, insere o comando de validação (`apply wancfg`) e pula uma linha para o próximo equipamento.
+* **Modificação do Modo:** Substitui `mode inter` por `mode tr069_int`.
+* **Upgrade de IP-Stack:** Altera a pilha de rede antiga (`ipv4` / `slaac`) para o padrão recomendado de transição: Dual Stack (`both`) com atribuição dinâmica via `dhcpv6`.
 
-```text
-[ Linha 1: WAN e Senha ]  --> Modifica o modo, extrai os IDs do Slot e traduz a senha.
-[ Linha 2: IP-Stack ]     --> Copia as diretrizes de IPv4/IPv6 integralmente.
-[ Injeção Automatizada ]  --> Insere o comando "apply wancfg sl [Slot] [Pon] [Onu_ID]".
-[ Quebra de Linha ]       --> Pula um espaço em branco antes de iniciar a próxima ONU.
-```
+### Bloco 2: Apontamento Remoto do Servidor ACS (Diretório: `gepon/onu`)
+Como o comando de gerenciamento remoto pertence a outro nível da CLI, o script mapeia dinamicamente todos os IDs de **Slot, Pon e ONU** processados no Bloco 1 e, no final do arquivo, gera de forma isolada a lista de comandos para direcionar os equipamentos até o servidor TR-069 do provedor.
 
-## 2. Como o Script Funciona
+---
 
-### A Lógica da Cifra (Espelhamento ASCII)
-Durante os testes empíricos em bancada utilizando senhas conhecidas (como `aaaaaa` e o alfabeto completo), descobriu-se que o firmware da OLT não utiliza uma criptografia complexa (como MD5 ou AES), mas sim uma **Cifra de Substituição por Espelhamento** baseada na tabela ASCII padrão.
+## 2. Engenharia Reversa da Senha (`key:`)
 
-
-A regra matemática exata aplicada pelo firmware para mascarar cada caractere é:
-
-$$\text{Valor ASCII do Caractere Mascarado} = 158 - \text{Valor ASCII da Senha Real}$$
-
-Para reverter a senha e descobrir o texto claro, o script faz a operação inversa:
+Para garantir que o TR-069 assuma a gerência sem quebrar os acessos atuais, o script descriptografa os caracteres contidos no parâmetro `key:` usando a regra matemática de espelhamento estático do firmware da OLT descoberta em testes de bancada:
 
 $$\text{Valor ASCII da Senha Real} = 158 - \text{Valor ASCII do Caractere Mascarado}$$
 
-
-#### Exemplo Prático de Conversão:
-
-
-* A letra **`a`** possui o valor ASCII 97.
-* Aplicando a fórmula: $158 - 97 = 61$.
-* O valor **61** na tabela ASCII corresponde ao caractere **`=`**.
-* Portanto, se a senha gravada for `aaaaaa`, o comando na OLT exibirá `key:======`.
-
+O script executa essa conversão instantaneamente em nível de linguagem C através da função nativa `.translate()` do Python, garantindo performance máxima.
 
 ---
 
-## 3. Otimizações de Performance (Processamento em Lote)
+## 3. Otimização para Provedores (Alta Performance)
 
-O script foi desenhado especificamente para ambientes de provedores de internet (ISPs) que lidam com **milhares de ONTs simultaneamente**. Para garantir velocidade máxima e consumo mínimo de hardware, foram aplicadas duas técnicas:
-
-1. **Processamento em Stream (Linha por Linha):** O script não carrega o arquivo `.txt` inteiro na memória RAM. Ele lê, processa e escreve uma linha por vez. Isso significa que você pode processar um arquivo de configuração de 2GB contendo milhões de ONTs utilizando praticamente 0% de memória RAM.
-2. **Tabela de Tradução Nativa (`str.maketrans`):** Em vez de fazer loops em Python caractere por caractere (o que seria lento), o script pré-calcula a tabela de reversão de todos os caracteres visíveis e utiliza a função `.translate()`. Essa função executa a substituição das strings diretamente em **nível de linguagem C** (mecanismo interno do Python), tornando a conversão instantânea.
+* **Consumo de Memória RAM Próximo a zero:** Utiliza processamento em formato de *Stream* (linha por linha). Arquivos de backup gigantescos contendo configurações de mais de 10.000 ONTs são processados em segundos sem travar o computador.
+* **Geração Limpa:** Comandos não reconhecidos ou linhas de comentários são preservados integralmente, mantendo o histórico e a integridade dos dados originais.
 
 ---
 
-## 4. Pré-requisitos
+## 4. Como Utilizar
 
-* Python 3.6 ou superior instalado no sistema.
-* Não é necessária a instalação de nenhuma biblioteca de terceiros (o script utiliza apenas módulos nativos: `re` e `sys`).
-
----
-
-## 5. Como Utilizar
-
-1. Extraia o relatório ou o arquivo de texto contendo as linhas de comando da sua OLT.
-2. Salve esse arquivo com o nome de **`input.txt`** na mesma pasta onde o script `decodificador.py` está localizado.
-3. Abra o seu terminal (Prompt de Comando ou PowerShell) na pasta do projeto e execute:
-
-```bash
-python decodificador.py
+1. Extraia o script de provisionamento ou backup de comandos atual da sua OLT.
+2. Salve este arquivo com o nome de **`input.txt`** na mesma pasta do script Python.
+3. Execute o script no terminal:
+   ```bash
+   python decodificador.py
