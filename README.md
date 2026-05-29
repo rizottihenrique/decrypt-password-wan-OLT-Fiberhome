@@ -39,7 +39,7 @@ $$\text{Valor ASCII da Senha Real} = 158 - \text{Valor ASCII do Caractere Mascar
 #### Exemplo Prático de Conversão:
 
 ```text
-* A letra **`a`** possui o valor ASCII **97**.
+* A letra **`a`** possui o valor ASCII 97.
 * Aplicando a fórmula: $158 - 97 = 61$.
 * O valor **61** na tabela ASCII corresponde ao caractere **`=`**.
 * Portanto, se a senha gravada for `aaaaaa`, o comando na OLT exibirá `key:======`.
