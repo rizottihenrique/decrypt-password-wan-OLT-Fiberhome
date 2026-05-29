@@ -3,8 +3,8 @@ import re
 # 1. Mapeamento matemático otimizado (chr(158 - ord(caractere)))
 tabela_traducao = str.maketrans({chr(i): chr(158 - i) for i in range(32, 127) if 0 <= (158 - i) <= 255})
 
-# 2. Regex para localizar o padrão key:VALOR
-regex_key = re.compile(r'(key:)(\S+)')
+# 2. Regex precisa para capturar o conteúdo EXATO do campo key: (para antes do espaço)
+regex_key = re.compile(r'key:(\S+)')
 
 # 3. Regex para capturar os números de: sl [slot] [pon] [onu_id]
 regex_sl = re.compile(r'sl\s+(\d+)\s+(\d+)\s+(\d+)')
@@ -26,11 +26,12 @@ def processar_lote_olt_completo(arquivo_entrada, arquivo_saida):
             onu_id_atual = None
             
             for linha in f_in:
-                if not linha.strip():
+                # Ignora linhas em branco ou comentários antigos do arquivo de entrada
+                if not linha.strip() or linha.strip().startswith('!'):
                     continue
                 
-                # Se for a primeira linha (WAN e senha)
-                if "mode inter" in linha:
+                # Se for a linha que configura a WAN (identificada por conter 'key:')
+                if "key:" in linha:
                     match_sl = regex_sl.search(linha)
                     if match_sl:
                         slot_atual = match_sl.group(1)
@@ -41,23 +42,30 @@ def processar_lote_olt_completo(arquivo_entrada, arquivo_saida):
                         if equipamento not in lista_equipamentos:
                             lista_equipamentos.append(equipamento)
                     
-                    # Altera 'mode inter' para 'mode tr069_int'
-                    linha = linha.replace("mode inter", "mode tr069_int")
+                    # Padroniza o modo para 'mode tr069_int', não importa o que estava antes
+                    # Trata 'mode inter', 'mode tr069_in', etc.
+                    linha = re.sub(r'mode \S+', 'mode tr069_int', linha)
                     
-                    # Localiza e decodifica a senha do 'key:'
+                    # Localiza e decodifica a senha do 'key:' de forma isolada e segura
                     match_key = regex_key.search(linha)
                     if match_key:
-                        senha_criptografada = match_key.group(2)
+                        senha_criptografada = match_key.group(1)
                         senha_real = senha_criptografada.translate(tabela_traducao)
+                        
+                        # Substitui exatamente o 'key:XXXX' pela senha decodificada sem o prefixo 'key:'
                         linha = linha.replace(f"key:{senha_criptografada}", senha_real)
                     
                     f_out.write(linha)
                 
                 # Se for a segunda linha (Configuração de IP-stack / IPv6)
                 elif "ip-stack-mode" in linha:
-                    # Aplica a alteração para habilitar IPv4/IPv6 (both) e DHCPv6
+                    # Garante a alteração para habilitar IPv4/IPv6 (both) e DHCPv6
                     if "ip-stack-mode ipv4" in linha:
                         linha = linha.replace("ip-stack-mode ipv4", "ip-stack-mode both")
+                    elif "ip-stack-mode both" not in linha:
+                        # Se já estiver both, mantém, senão força
+                        linha = re.sub(r'ip-stack-mode \S+', 'ip-stack-mode both', linha)
+                        
                     if "ipv6-src-type slaac" in linha:
                         linha = linha.replace("ipv6-src-type slaac", "ipv6-src-type dhcpv6")
                     
@@ -83,7 +91,7 @@ def processar_lote_olt_completo(arquivo_entrada, arquivo_saida):
             for slot, pon, onu_id in lista_equipamentos:
                 comando_tr069 = (
                     f"set remote_manage_cfg slot {slot} pon {pon} onu {onu_id} tr069 enable "
-                    f"acs_url http://cwmp.teste.acme.com:8000 acl_user admin acl_pswd admin "
+                    f"acs_url http://cwmp.nicnet.com.br:8088 acl_user Admin acl_pswd Admin@1234 "
                     f"inform enable interval 43200 port 30005 user cpe pswd cpe\n"
                 )
                 f_out.write(comando_tr069)
