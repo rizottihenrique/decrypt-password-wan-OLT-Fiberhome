@@ -26,7 +26,7 @@ O script rastreia e organiza o fluxo da seguinte forma:
 ### A Lógica da Cifra (Espelhamento ASCII)
 Durante os testes empíricos em bancada utilizando senhas conhecidas (como `aaaaaa` e o alfabeto completo), descobriu-se que o firmware da OLT não utiliza uma criptografia complexa (como MD5 ou AES), mas sim uma **Cifra de Substituição por Espelhamento** baseada na tabela ASCII padrão.
 
-```text
+
 A regra matemática exata aplicada pelo firmware para mascarar cada caractere é:
 
 $$\text{Valor ASCII do Caractere Mascarado} = 158 - \text{Valor ASCII da Senha Real}$$
@@ -34,16 +34,16 @@ $$\text{Valor ASCII do Caractere Mascarado} = 158 - \text{Valor ASCII da Senha R
 Para reverter a senha e descobrir o texto claro, o script faz a operação inversa:
 
 $$\text{Valor ASCII da Senha Real} = 158 - \text{Valor ASCII do Caractere Mascarado}$$
-```
+
 
 #### Exemplo Prático de Conversão:
 
-```text
+
 * A letra **`a`** possui o valor ASCII 97.
 * Aplicando a fórmula: $158 - 97 = 61$.
 * O valor **61** na tabela ASCII corresponde ao caractere **`=`**.
 * Portanto, se a senha gravada for `aaaaaa`, o comando na OLT exibirá `key:======`.
-```
+
 
 ---
 
